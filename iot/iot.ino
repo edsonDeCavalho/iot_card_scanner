@@ -163,15 +163,19 @@ void printBuzzer2(int melody[],int duration[],int tailleDuration){
 
 void allumerLedRouge(){
   digitalWrite(LED_ROUGE, HIGH); // turn the LED on
-  delay(500);             // wait for 500 milliseconds
+  delay(5);             // wait for 500 milliseconds
+}
+void etandreLedRouge(){
   digitalWrite(LED_ROUGE, LOW);  // turn the LED off
-  delay(500);    
+  delay(5);    
 }
 void allumerLedVerte(){
   digitalWrite(LED_VERTE, HIGH); // turn the LED on
-  delay(500);             // wait for 500 milliseconds
+  delay(5);             // wait for 500 milliseconds   
+}
+void etandreLedVerte(){
   digitalWrite(LED_VERTE, LOW);  // turn the LED off
-  delay(500);    
+  delay(5); 
 }
 
 /**Process RFID Lecture**/
@@ -232,12 +236,14 @@ void sendPost3(WiFiClientSecure *client){
             Serial.println(payload);
             allumerLedVerte();
             printBuzzer2(melodyPresenceValid,noteDurationsValid,8);
+            etandreLedVerte();
             
           }
           if(httpCode ==  HTTP_CODE_BAD_REQUEST){
             Serial.println("Print Burzzer 400");
             allumerLedRouge();
             printBuzzer2(melodyPresenceInvalid,noteDurationsInvalid,1);
+            etandreLedRouge();
             
           }
         } else {
