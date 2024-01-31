@@ -15,7 +15,25 @@
 #include <WiFi.h>
 #include <WiFiMulti.h>
 #include <WiFiClientSecure.h>
+#include "musicNotes.h"
+/**Buzzer**/
+#define BUZZZER_PIN  16 // ESP32 pin GPIO18 connected to piezo buzzer
+#define LED_ROUGE 14  // pin led rouge
+#define LED_VERTE 26  // pin led verte
+int melodyPresenceValid[] = {
+  NOTE_C4, NOTE_G3, NOTE_G3, NOTE_A3, NOTE_G3, 0, NOTE_B3, NOTE_C4
+};
+int melodyPresenceInvalid[] = {
+  NOTE_DS8
+};
 
+int noteDurationsValid[] = {
+  4, 8, 8, 4, 4, 4, 4, 4
+};
+
+int noteDurationsInvalid[] = {
+  1
+};
 /**RFID**/
 #define SS_PIN  5  // ESP32 pin GPIO5 
 #define RST_PIN 27 // ESP32 pin GPIO27 
@@ -47,14 +65,14 @@ const char* rootCACertificate = \
 /**Data**/
 int roomId = 1;
 String cardId = "1234567891";
-/**Api URLS**/
-String urlToSendPresence = "http://d04ad23.online-server.cloud:8083/rooms/present";
 /**Wifi Settings**/
-const char* ssid = "coralie";
-const char* password = "Loacoco52001";
+const char* ssid = "edsonwifi";
+const char* password = "00000000";
 unsigned long lastTime = 0;
 unsigned long timerDelay = 1000;
 WiFiMulti WiFiMulti;
+WiFiClientSecure *client = new WiFiClientSecure;
+
 void setClock() {
   configTime(0, 0, "pool.ntp.org");
 
@@ -76,20 +94,23 @@ void setClock() {
 
 /**Initialisation**/
 void setup() {
-   Serial.begin(115200); 
+  /**Buzzer**/
+  pinMode(BUZZZER_PIN, OUTPUT);
+  /**LED ROUGE**/
+  pinMode(LED_ROUGE, OUTPUT);
+  /**LED VERTE**/
+  pinMode(LED_VERTE, OUTPUT);
+  Serial.begin(115200); 
   /**RFID**/
   SPI.begin(); // init SPI bus
   rfid.PCD_Init(); // init MFRC522
   Serial.println("Tap an RFID/NFC tag on the RFID-RC522 reader");
   /**Wifi**/
-
-  // Serial.setDebugOutput(true);
-
   Serial.println();
   Serial.println();
   Serial.println();
 
-WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_STA);
   WiFiMulti.addAP(ssid, password);
 
   // wait for WiFi connection
@@ -100,17 +121,6 @@ WiFi.mode(WIFI_STA);
  Serial.println(" connected");
 
 setClock();  
- // WiFi.begin(ssid, password);
- // Serial.println("Connecting");
- // while(WiFi.status() != WL_CONNECTED) {
- //   delay(500);
- //   Serial.print(".");
- // }
- // Serial.println("");
- // Serial.print("Connected to WiFi network with IP Address: ");
-//  Serial.println(WiFi.localIP());
- // Serial.println("Timer set to 5 seconds (timerDelay variable), it will take 5 seconds before publishing the first reading.");
- 
 }
 /**Conversion de Char a String **/
 
@@ -125,10 +135,50 @@ void array_to_string(byte array[], unsigned int len, char buffer[])
    }
    buffer[len*2] = '\0';
 }
+
+void printBuzzer(int melody[],int duration[]){
+    Serial.println(sizeof(melody)/sizeof(melody));
+    int taille = sizeof(melody)/sizeof(melody);
+   for (int thisNote = 0; thisNote < taille; thisNote++) {
+    int noteDuration = 1000 / duration[thisNote];
+    tone(BUZZZER_PIN, melody[thisNote], noteDuration);
+
+    int pauseBetweenNotes = noteDuration * 1.30;
+    delay(pauseBetweenNotes);
+    noTone(BUZZZER_PIN);
+  }
+}
+void printBuzzer2(int melody[],int duration[],int tailleDuration){
+    Serial.println(sizeof(melody)/sizeof(melody));
+   for (int thisNote = 0; thisNote < tailleDuration; thisNote++) {
+    int noteDuration = 1000 / duration[thisNote];
+    tone(BUZZZER_PIN, melody[thisNote], noteDuration);
+
+    int pauseBetweenNotes = noteDuration * 1.30;
+    delay(pauseBetweenNotes);
+    noTone(BUZZZER_PIN);
+  }
+}
+
+
+void allumerLedRouge(){
+  digitalWrite(LED_ROUGE, HIGH); // turn the LED on
+  delay(500);             // wait for 500 milliseconds
+  digitalWrite(LED_ROUGE, LOW);  // turn the LED off
+  delay(500);    
+}
+void allumerLedVerte(){
+  digitalWrite(LED_VERTE, HIGH); // turn the LED on
+  delay(500);             // wait for 500 milliseconds
+  digitalWrite(LED_VERTE, LOW);  // turn the LED off
+  delay(500);    
+}
+
 /**Process RFID Lecture**/
-void rfidProcess(){
+bool rfidProcess(){
    if (rfid.PICC_IsNewCardPresent()) { // new tag is available
     if (rfid.PICC_ReadCardSerial()) { // NUID has been readed
+      
       MFRC522::PICC_Type piccType = rfid.PICC_GetType(rfid.uid.sak);
       Serial.print("RFID/NFC Tag Type: ");
       Serial.println(rfid.PICC_GetTypeName(piccType));
@@ -146,19 +196,20 @@ void rfidProcess(){
       Serial.println(str);
       /**Send to API**/
       cardId=str;
-      sendPresencePOST();
+      //sendPresencePOST();
       rfid.PICC_HaltA(); // halt PICC
       rfid.PCD_StopCrypto1(); // stop encryption on PCD
+      return true;
+    } else{
+      return false;
     }
+  } else {
+    return false;
   }
 }
-void senPresence2POST(){
-    WiFiClientSecure *client = new WiFiClientSecure;
-  if(client) {
-    client -> setCACert(rootCACertificate);
 
-    {
-      // Add a scoping block for HTTPClient https to make sure it is destroyed before WiFiClientSecure *client is 
+void sendPost3(WiFiClientSecure *client){
+      {
       HTTPClient https;
   
       Serial.print("[HTTPS] begin...\n");
@@ -179,9 +230,21 @@ void senPresence2POST(){
           if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
             String payload = https.getString();
             Serial.println(payload);
+            allumerLedVerte();
+            printBuzzer2(melodyPresenceValid,noteDurationsValid,8);
+            
+          }
+          if(httpCode ==  HTTP_CODE_BAD_REQUEST){
+            Serial.println("Print Burzzer 400");
+            allumerLedRouge();
+            printBuzzer2(melodyPresenceInvalid,noteDurationsInvalid,1);
+            
           }
         } else {
           Serial.printf("[HTTPS] GET... failed, error: %s\n", https.errorToString(httpCode).c_str());
+          allumerLedRouge();
+          printBuzzer2(melodyPresenceInvalid,noteDurationsInvalid,1);
+          
         }
   
         https.end();
@@ -190,38 +253,16 @@ void senPresence2POST(){
       }
 
       // End extra scoping block
-    }
-  
-    delete client;
+    } 
+}
+void loop() {
+  if(client) {
+    client -> setCACert(rootCACertificate);
+
+      if(rfidProcess()){
+        sendPost3(client);
+      }
   } else {
     Serial.println("Unable to create client");
   }
-
-  Serial.println();
-  Serial.println("Waiting 10s before the next round...");
-  delay(10000);
-}
-void sendPresencePOST(){
-      WiFiClient client;
-      HTTPClient http;
-      // Your Domain name with URL path or IP address with path
-      http.begin(urlToSendPresence.c_str());
-      
-      http.addHeader("Content-Type", "application/json");
-      char json[50]; // Assurez-vous que cette taille est suffisante pour contenir votre JSON
-      sprintf(json, "{\"roomId\":%d,\"cardId\":\"%s\"}", roomId, cardId);
-      int httpResponseCode = http.POST(json);
-      //response = http.responseBody();
-      String payload = http.getString();
-      Serial.println(payload);
-      Serial.print("HTTP Response code: ");
-      Serial.println(httpResponseCode);
-    
-        
-      // Free resources
-      http.end();
-}
-
-void loop() {
-  senPresence2POST();
 }
