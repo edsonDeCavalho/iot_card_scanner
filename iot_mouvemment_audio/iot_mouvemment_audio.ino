@@ -4,7 +4,8 @@
 #define PIN_INFRA_ROUGE 35
 
 DFRobotDFPlayerMini myDFPlayer;
- 
+long randNumber;
+
 void setup() {
     Serial2.begin(9600);
     Serial.begin(115200);
@@ -26,7 +27,7 @@ void mouvemmentDetetion(){
   Serial.println(digitalRead(PIN_INFRA_ROUGE));
   if (digitalRead(PIN_INFRA_ROUGE) == 1){
       Serial.println("Motion detected");
-      myDFPlayer.volume(20);
+      myDFPlayer.volume(30);
       myDFPlayer.play(1);
   }
   //delay(20);  

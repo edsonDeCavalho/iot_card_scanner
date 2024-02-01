@@ -20,6 +20,7 @@
 #define BUZZZER_PIN  16 // ESP32 pin GPIO18 connected to piezo buzzer
 #define LED_ROUGE 14  // pin led rouge
 #define LED_VERTE 26  // pin led verte
+#define LED_JEUNE 32  // pin led jeune
 int melodyPresenceValid[] = {
   NOTE_C4, NOTE_G3, NOTE_G3, NOTE_A3, NOTE_G3, 0, NOTE_B3, NOTE_C4
 };
@@ -66,8 +67,8 @@ const char* rootCACertificate = \
 int roomId = 1;
 String cardId = "1234567891";
 /**Wifi Settings**/
-const char* ssid = "edsonwifi";
-const char* password = "00000000";
+const char* ssid ="coralie";
+const char* password = "Loacoco52001";
 unsigned long lastTime = 0;
 unsigned long timerDelay = 1000;
 WiFiMulti WiFiMulti;
@@ -100,6 +101,8 @@ void setup() {
   pinMode(LED_ROUGE, OUTPUT);
   /**LED VERTE**/
   pinMode(LED_VERTE, OUTPUT);
+  /**LED JEUNE**/
+  pinMode(LED_JEUNE, OUTPUT);
   Serial.begin(115200); 
   /**RFID**/
   SPI.begin(); // init SPI bus
@@ -159,8 +162,14 @@ void printBuzzer2(int melody[],int duration[],int tailleDuration){
     noTone(BUZZZER_PIN);
   }
 }
-
-
+void allumerLedJeune(){
+  digitalWrite(LED_JEUNE, HIGH); // turn the LED on
+  delay(5);             // wait for 500 milliseconds
+}
+void etandreLedJeune(){
+  digitalWrite(LED_JEUNE, LOW);  // turn the LED off
+  delay(5); 
+}
 void allumerLedRouge(){
   digitalWrite(LED_ROUGE, HIGH); // turn the LED on
   delay(5);             // wait for 500 milliseconds
@@ -182,7 +191,7 @@ void etandreLedVerte(){
 bool rfidProcess(){
    if (rfid.PICC_IsNewCardPresent()) { // new tag is available
     if (rfid.PICC_ReadCardSerial()) { // NUID has been readed
-      
+     
       MFRC522::PICC_Type piccType = rfid.PICC_GetType(rfid.uid.sak);
       Serial.print("RFID/NFC Tag Type: ");
       Serial.println(rfid.PICC_GetTypeName(piccType));
@@ -203,6 +212,7 @@ bool rfidProcess(){
       //sendPresencePOST();
       rfid.PICC_HaltA(); // halt PICC
       rfid.PCD_StopCrypto1(); // stop encryption on PCD
+      
       return true;
     } else{
       return false;
@@ -262,11 +272,13 @@ void sendPost3(WiFiClientSecure *client){
     } 
 }
 void loop() {
+  //llumerLedJeune();
   if(client) {
     client -> setCACert(rootCACertificate);
-
       if(rfidProcess()){
+        allumerLedJeune();
         sendPost3(client);
+        etandreLedJeune();
       }
   } else {
     Serial.println("Unable to create client");
